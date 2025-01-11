@@ -20,7 +20,7 @@ import csv
 #program parameters
 c    = 299792458
 #should be multiples of 90
-num_points = 90
+num_points = 450
 # latc = 0.3
 # a1 = (-(1/2)*latc,latc*math.sqrt(3)/2)
 # a2 = ((1/2)*latc,latc*math.sqrt(3)/2 )
@@ -125,7 +125,7 @@ def plot_spectrum(epsilon,frequency):
 
     #sweep through incident angle
     theta_values = np.linspace(0,90,num_points)
-
+    theta_values_rad = [math.radians(the) for the in theta_values]
     transmission_values = []
     kx_values = []
 
@@ -158,7 +158,7 @@ def plot_spectrum(epsilon,frequency):
 
     #at each frequency, calculate projection of incident wavevectors onto reciprocal lattice
     for nu in frequency:
-        wavevectors = [wavevector(ang,0,nu) for ang in theta_values]
+        wavevectors = [wavevector(ang,0,nu) for ang in theta_values_rad]
 
         k_recps =  recipro(a1,a2)
 
