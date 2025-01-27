@@ -119,12 +119,11 @@ def wavevector(theta,phi,ω):
     return k
 
 # Function to generate hexagon vertices
-def generate_hexagon(center: Tuple[float, float], radius: float) -> List[Tuple[float, float]]:
+def generate_hexagon(center,radius):
     cx, cy = center
     vertices = [
-        (cx + radius * np.cos(2 * np.pi * i / 6), cy + radius * np.sin(2 * np.pi * i / 6))
-        for i in range(6)
-    ]
+        (cx + radius * np.cos(2 * np.pi * i / 6), cy + radius * np.sin(2 * np.pi * i / 6)) for i in range(6)]
+    print(vertices)
     return vertices
 
 
