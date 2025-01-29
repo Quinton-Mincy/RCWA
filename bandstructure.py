@@ -9,7 +9,7 @@ from numpy import linalg as la
 
 from matplotlib import pyplot as plt
 from matplotlib import cm
-import au_LD_model
+# import au_LD_model
 import math
 from inkstone import Inkstone
 from tqdm import tqdm
@@ -20,15 +20,15 @@ from typing import List, Tuple
 #program parameters
 c    = 299792458
 #should be multiples of 90
-num_points = 180
+num_points = 30
 latc = 0.5
-a1 = (-(1/2)*latc,latc*math.sqrt(3)/2)
-a2 = ((1/2)*latc,latc*math.sqrt(3)/2)
+# a1 = (-(1/2)*latc,latc*math.sqrt(3)/2)
+# a2 = ((1/2)*latc,latc*math.sqrt(3)/2)
 # a1 = (latc,0)
 # a2 = (-(1/2)*latc,latc*math.sqrt(3)/2)
 
-# a1 = (latc,0)
-# a2 = ((1/2)*latc,latc*math.sqrt(3)/2)
+a1 = (latc,0)
+a2 = ((1/2)*latc,latc*math.sqrt(3)/2)
 
 # Define hexagon parameters
 center = (0, 0)  # Center of the hexagon
@@ -76,7 +76,6 @@ def recipro(a1, a2,k_point = False):
 
             b1 = np.array([coef * a2[1], -coef * a2[0]])
             b2 = np.array([-coef * a1[1], coef * a1[0]])
-
     # print(b1,b2)
     return b1,b2
 
@@ -89,9 +88,10 @@ def find_phi(b1,b2):
     phi = np.arccos(dot/(mag_b1 * mag_b2))
 
     return phi
+
 def k_corner(b1,b2):
     corner = b1 + b2
-    # corner = corner / np.linalg.norm(corner)
+    corner = corner / np.linalg.norm(corner)
     return corner
 
 def freq2lambda(a,freq):
@@ -117,7 +117,6 @@ def wavevector(theta,phi,ω):
     k = np.array([kx,ky])
   
     return k
-
 # Function to generate hexagon vertices
 def generate_hexagon(center,radius):
     cx, cy = center
@@ -132,51 +131,52 @@ def plot_spectrum(epsilon,frequency):
     s.lattice = (a1,a2)
 
     b1,b2 =  recipro(a1,a2)
+    print(b1,b2)
     corner = k_corner(b1,b2)
-    print(corner)
-    phi_bis = find_phi(b1,b2) / 2
-    phi_values_rad = np.linspace(phi_bis,0,num_points)
-    phi_values_rad = phi_values_rad[1:]
 
-    phi_values_deg = phi_values_rad *(180/math.pi)
+    phi_bis = find_phi(b1,b2) / 4
 
+    phi_bis_deg = phi_bis * (180/math.pi)
+    print(phi_bis_deg)
 
-
-  
     s.num_g = 50
 
     hexagon_vertices = generate_hexagon(center, radius)
 
+    wavelengths = freq2lambda(1, frequency) * 1000  # Convert to nm
+
+
     # s.AddMaterial(name='Au', epsilon=epsilon[0])
-    s.AddMaterial(name='Au', epsilon=9.61)
+    s.AddMaterial(name='Au', epsilon=epsilon)
     s.AddLayer(name='in', thickness=0, material_background='vacuum')
-    s.AddLayer(name='slab', thickness=0.5*latc, material_background='Au')
+    s.AddLayer(name='slab', thickness=1.0, material_background='Au')
     s.AddLayerCopy(name='out', original_layer='in', thickness=0)
     # s.AddPatternDisk(layer='slab', pattern_name='disk', material='vacuum', radius=0.216)
     s.AddPatternPolygon(layer = 'slab',material = 'Au',vertices = hexagon_vertices,pattern_name = 'Hexagon')
 
     #set figure size
     plt.figure(figsize=(10, 6))
-
     #sweep through incident angle
-    theta_values = np.linspace(-90,90,num_points,endpoint = False)
-    #exlude start value
-    theta_values = theta_values[1:]
-
+    theta_values = np.linspace(90,0,num_points)
+    theta_values = np.concatenate((theta_values, theta_values[::-1]))
     theta_values_rad = [math.radians(theta) for theta in theta_values]
+
     transmission_values = []
     kx_values = []
 
-    for theta,phi in tqdm(zip(theta_values,phi_values_deg)):
+    phis = [phi_bis_deg,90]
+    phis_rad = [phi_bis,(math.pi)/2]
+    j = 0
+    k = 0
+    for theta in tqdm(theta_values):
 
-        s.SetExcitation(theta=theta, phi=phi, s_amplitude=1/np.sqrt(2), p_amplitude=1/np.sqrt(2))
+        s.SetExcitation(theta=theta, phi=phis[j], s_amplitude=1/np.sqrt(2), p_amplitude=1/np.sqrt(2))
         flux_in = []
         flux_out = []
 
         for i, nu in enumerate(frequency):
             # Update material properties and frequency
-            # s.SetMaterial(name='Au', epsi=epsilon[i])
-            s.SetMaterial(name='Au', epsi=9.61)
+            s.SetMaterial(name='Au', epsi=epsilon)
             s.SetFrequency(nu)
             
             flux_in.append(s.GetPowerFlux('in'))
@@ -191,38 +191,38 @@ def plot_spectrum(epsilon,frequency):
         wavelengths = freq2lambda(1, frequency) * 1000  # Convert to nm
 
         transmission_values.append(transmission)
+        if(k == num_points - 1):
+            j = 1
+        k = k+1
 
-        # Plot transmission vs wavelength
-        plt.plot(wavelengths, transmission * 100, label=f'Theta = {theta}°')
-
-    #at each frequency, calculate projection of incident wavevectors onto reciprocal lattice
-    
-    k_point = (1/3)*b1 + (1/3)*b2
-    k_hat = k_point / np.linalg.norm(k_point)  # Normalize
-    k_hat_b1 = b1 / np.linalg.norm(b1)  # Normalize
-    
-    # print(k_hat_b1)
+    j = 0
+    k = 0
+    c = -1
+    vec_ = [corner, b1]
     for nu in frequency:
-        wavevectors = [wavevector(theta,phi,nu) for theta,phi in zip(theta_values_rad,phi_values_rad)]
+        wavevectors = [wavevector(theta,phis_rad[j],nu) for theta in theta_values_rad]
 
-
-        projections = [proj(wv,corner) for wv in wavevectors] 
+        projections = [proj(wv,vec_[j]) for wv in wavevectors] 
         proj_mags = [np.linalg.norm(proj) for proj in  projections]
+        proj_mags = [mag*c for mag in proj_mags]
         kx_values.append(proj_mags)
-    
+        if(k == num_points - 1):
+            j = 1
+            c = 1
+        k = k+1
     
     #Transmision vs wavelength
-    plt.xlabel('Wavelength (nm)')
-    plt.ylabel('Transmission (%)')
-    plt.title('Transmission vs Wavelength for Various Theta Values')
-    plt.legend(loc='best')  # Automatically place legend
-    plt.grid(True)
+    # plt.xlabel('Wavelength (nm)')
+    # plt.ylabel('Transmission (%)')
+    # plt.title('Transmission vs Wavelength for Various Theta Values')
+    # plt.legend(loc='best')  # Automatically place legend
+    # plt.grid(True)
 
     # Prepare data for contour plot
     kx_values = np.array(kx_values)
     transmission_values = np.array(transmission_values)
     transmission_values_2d = transmission_values.T 
-    frequency_2d = np.tile(frequency[:, np.newaxis], (1, kx_values.shape[1])) 
+    frequency_2d = np.tile(wavelengths[:, np.newaxis], (1, kx_values.shape[1])) 
 
 
     #image show transmission
@@ -244,26 +244,26 @@ def extract(data):
     return points
 
 
-def eps(data):
-    points = extract(data)
+def eps():
+    # points = extract(data)
     #wavelength
-    lam = points[0]
-    #index of frefraction
-    n   = points[1]
-    #extinction coeeficient
-    k   = points[2]
-    #dielectric constant
-    ε_real   = points[3]
-    ε_imag   = points[4]
+    # lam = points[0]
+    # #index of frefraction
+    # n   = points[1]
+    # #extinction coeeficient
+    # k   = points[2]
+    # #dielectric constant
+    # ε_real   = points[3]
+    # ε_imag   = points[4]
        
     frequency = np.linspace(.25,.6,num_points)
-    epsilon = [complex(real, imag) for real, imag in zip(ε_real, ε_imag)]  
-    plot_spectrum(epsilon,frequency)
+    # epsilon = [complex(real, imag) for real, imag in zip(ε_real, ε_imag)]  
+    plot_spectrum(9.61,frequency)
  
 
     plt.show()
 
 if __name__ =='__main__':
-    au_LD_model.au_model()
-    data = np.genfromtxt('out.csv', delimiter=',')
-    eps(data)
+    # au_LD_model.au_model()
+    # data = np.genfromtxt('out.csv', delimiter=',')
+    eps()
