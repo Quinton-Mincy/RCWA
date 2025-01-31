@@ -1,8 +1,6 @@
 #Author(s): Quinton Mincy
-#Last Modified: 01/26/24
+#Last Modified: 01/31/24
 #Code Built Arround Alex Song's Examples for his Inkstone library: https://github.com/alexysong/inkstone
-
-
 
 import numpy as np
 from numpy import linalg as la
@@ -16,16 +14,16 @@ from tqdm import tqdm
 import csv
 from typing import List, Tuple
 
-
+#multipliers
+tera = 1e12
 #program parameters
 c    = 299792458
+c_nm = c * 1e9  # Convert to nanometers per second (nm/s)
+
 #should be multiples of 90
-num_points = 3
+num_points = 30
+
 latc = 0.5
-# a1 = (-(1/2)*latc,latc*math.sqrt(3)/2)
-# a2 = ((1/2)*latc,latc*math.sqrt(3)/2)
-# a1 = (latc,0)
-# a2 = (-(1/2)*latc,latc*math.sqrt(3)/2)
 
 a1 = (latc,0)
 a2 = ((1/2)*latc,latc*math.sqrt(3)/2)
@@ -40,7 +38,7 @@ radius = 0.216/2    # circumradius (microns)
 
 
 #find reciprocal lattice vectors
-def recipro(a1, a2,k_point = False):
+def recipro(a1, a2):
     """
     given two lattice vectors, give two reciprocal lattice vectors
     If one of the lattice vectors is zero, then the returned corresponding reciprocal lattice vector is float('inf').
@@ -77,7 +75,6 @@ def recipro(a1, a2,k_point = False):
             b1 = np.array([coef * a2[1], -coef * a2[0]])
             b2 = np.array([-coef * a1[1], coef * a1[0]])
 
-    # print(b1,b2)
     return b1,b2
 
 #angle between reciprocal lattice vectors (radians)
@@ -123,7 +120,6 @@ def generate_hexagon(center,radius):
     cx, cy = center
     vertices = [
         (cx + radius * np.cos(2 * np.pi * i / 6), cy + radius * np.sin(2 * np.pi * i / 6)) for i in range(6)]
-    print(vertices)
     return vertices
 
 def init_inkstone(epsilon,geometry):
@@ -140,128 +136,70 @@ def init_inkstone(epsilon,geometry):
 
     return s
 
-def plot_spectrum(epsilon,frequency):
-    
+def plot_spectrum(epsilon,frequency,wavelength):
+    #initiate inkstone object
     hexagon_vertices = generate_hexagon(center, radius)
     s = init_inkstone(epsilon,hexagon_vertices)
     
+    #reciprocal space calculations
     b1,b2 =  recipro(a1,a2)
-    print(b1,b2)
     corner = k_corner(b1,b2)
-
-    phi_bis = find_phi(b1,b2) / 4
-
+    phi_bis = find_phi(b1,b2) / 2
     phi_bis_deg = phi_bis * (180/math.pi)
-
-
-
-    wavelengths = freq2lambda(1, frequency) * 1000  # Convert to nm
-    
-    #set figure size
-    plt.figure(figsize=(10, 6))
-
-    #sweep through incident angle
-    theta_values = np.linspace(90,0,num_points)
-    theta_values = np.concatenate((theta_values, theta_values))
-    theta_values_rad = [math.radians(theta) for theta in theta_values]
-
-    transmission_values = []
-    kx_values = []
-
-    phis = [phi_bis_deg,90]
-    phis_rad = [phi_bis,(math.pi)/2]
-    j = 0
-    k = 0
-
-    
-
-    # Create increasing sequence
-    
-    freq_rev = frequency[::-1]
-
-    freqs = [frequency,freq_rev]
-    
-    # Concatenate both sequences
-    iters = freqs + freq_rev
-
 
     #sweep through incident angle
     theta_values1 = np.linspace(90,0,num_points)
-    theta_values_rad = [math.radians(theta) for theta in theta_values1]
+    angles_deg = np.concatenate((theta_values1, theta_values1[::-1]))
+    angles_rad = [math.radians(angle) for angle in angles_deg]
 
-    theta_values1_rev = np.linspace(0,90,num_points)
-    theta_values1_rev_rad = [math.radians(theta) for theta in theta_values1_rev]
+    #x and z axis arrays
+    kx_values = []
+    transmission_values = []
 
-    theta_deg = [theta_values1,theta_values1_rev]
+    phis = [phi_bis_deg,90]
+    phis_rad = [phi_bis,(math.pi)/2]
 
-    for i, nu in enumerate(frequency):
-        # Update material properties and frequency
-        s.SetMaterial(name='Au', epsi=epsilon)
-        s.SetFrequency(nu)
-        flux_in = []
-        flux_out = []
-        j = 0
-        for theta in tqdm(theta_deg[j]):
-            s.SetExcitation(theta=theta, phi=phis[j], s_amplitude=1/np.sqrt(2), p_amplitude=1/np.sqrt(2))
-            flux_in.append(s.GetPowerFlux('in'))
-            flux_out.append(s.GetPowerFlux('out'))
-            if theta == 0:
-                j = 1
-        incident = np.array([a[0] for a in flux_in])
-     
-        reflection = -np.array([a[1] for a in flux_in]) / incident
-        transmission = np.array([a[0] for a in flux_out]) / incident
-
-        transmission_values.append(transmission)
-
-                
-    # for theta in tqdm(theta_values):
-
-    #     s.SetExcitation(theta=theta, phi=phis[j], s_amplitude=1/np.sqrt(2), p_amplitude=1/np.sqrt(2))
-    #     flux_in = []
-    #     flux_out = []
-
-    #     for i, nu in enumerate(freqs[j]):
-        
-            
-    #         # Update material properties and frequency
-    #         s.SetMaterial(name='Au', epsi=epsilon)
-    #         s.SetFrequency(nu)
-    #         flux_in.append(s.GetPowerFlux('in'))
-    #         flux_out.append(s.GetPowerFlux('out'))
-
-    #     incident = np.array([a[0] for a in flux_in])
-     
-    #     reflection = -np.array([a[1] for a in flux_in]) / incident
-    #     transmission = np.array([a[0] for a in flux_out]) / incident
-
-    #     transmission_values.append(transmission)
-    #     if(k == num_points - 1):
-    #         j = 1
-    #         s = init_inkstone(epsilon,hexagon_vertices)
-    #     k = k+1
-        
-    j = 0
-    k = 0
-    c = -1
     vec_ = [corner, b1]
-    for j in range(len(freqs)):
-        for nu in freqs[j]:
-            wavevectors = [wavevector(theta,phis_rad[j],nu) for theta in theta_values_rad]
-            projections = [proj(wv,vec_[j]) for wv in wavevectors]
+    freq_normalized = (frequency * (500e-9)) / c
 
-            # wavevectors = [wavevector(theta,phis_rad[j+1],nu) for theta in theta_values_rad]
-            # projections.append
-            proj_mags = [np.linalg.norm(proj) for proj in  projections]
-            proj_mags = [mag*c for mag in proj_mags]
+    with tqdm(total=len(freq_normalized), desc="Analyzing Frequencies", dynamic_ncols=True) as pbar:
+        for i, nu in enumerate(freq_normalized):
+            pbar.set_description(f"ν: {frequency[i]/tera:.2f} THz, λ: {wavelength[i]:.2f} nm")  # Update text
+            pbar.update(1)  # Increment progress bar
+            # Update material properties and frequency
+            s.SetMaterial(name='Au', epsi=epsilon)
+            s.SetFrequency(nu)
+            flux_in = []
+            flux_out = []
+
+            proj_mags = []
+            j = 0
+            n = -1
+            for i, (theta_d, theta_r) in enumerate(zip(angles_deg, angles_rad)):
+                #transmission calculations
+                s.SetExcitation(theta=theta_d, phi=phis[j], s_amplitude=1/np.sqrt(2), p_amplitude=1/np.sqrt(2))
+                flux_in.append(s.GetPowerFlux('in'))
+                flux_out.append(s.GetPowerFlux('out'))
+                #projections
+                wv =wavevector(theta_r,phis_rad[j],nu) 
+                projection = [proj(wv,vec_[j])]
+                #find kx
+                proj_mag = np.linalg.norm(projection) 
+                #make k-corner values negative
+                proj_mag = proj_mag * n
+                proj_mags.append(proj_mag)
+                if(i == num_points - 1):
+                    j = 1
+                    n = 1
+
+            incident = np.array([a[0] for a in flux_in])
+            reflection = -np.array([a[1] for a in flux_in]) / incident
+            transmission = np.array([a[0] for a in flux_out]) / incident
+
+            transmission_values.append(transmission)
+            
             kx_values.append(proj_mags)
-            if(k == num_points - 1):
-                j = 1
-                c = 1
-            k = k+1
 
-    
-    
     #Transmision vs wavelength
     # plt.xlabel('Wavelength (nm)')
     # plt.ylabel('Transmission (%)')
@@ -271,23 +209,28 @@ def plot_spectrum(epsilon,frequency):
 
     # Prepare data for contour plot
     kx_values = np.array(kx_values)
+    # kx_values *= ( (2*math.pi) / 500e-9)
     transmission_values = np.array(transmission_values)
-    transmission_values_2d = transmission_values
-    frequency_2d = np.tile(freqs[0][:, np.newaxis], (1, kx_values.shape[1])) 
 
+    num_y, num_x = kx_values.shape  # Get dimensions
 
-    #image show transmission
+    Y = frequency.reshape(-1, 1)
+    # Expand Y across columns to match X (broadcasting)
+    Y = np.tile(Y, (1, num_x))
+
+    # image show transmission
     plt.figure(figsize=(10, 6))
-    plt.imshow(transmission_values_2d,cmap = 'viridis')
+    plt.imshow(transmission_values,cmap = 'viridis', origin='lower')
 
 
-    #Contour map
+    # #Contour map
     plt.figure(figsize=(10, 6))
-    plt.contourf(kx_values, frequency_2d, transmission_values_2d, levels=100, cmap='viridis')  # Colormap
+    plt.contourf(kx_values, Y, transmission_values, levels=100, cmap='viridis')  # Colormap
+
     plt.colorbar(label='Transmission')
     plt.xlabel('$k_x$')
-    plt.ylabel('Wavelength')
-    plt.title('Transmission Intensity Contour ($k_x$ vs. Wavelength)')
+    plt.ylabel('Frequency (THz)')
+    plt.title('Transmission Intensity Contour ($k_x$ vs. Frequency)')
 
 def eps():
     # points = extract(data)
@@ -300,12 +243,14 @@ def eps():
     # #dielectric constant
     # ε_real   = points[3]
     # ε_imag   = points[4]
-       
-    frequency = np.linspace(.25,.6,num_points)
-    
+    #375e12-420e12 THz ~ 714-800 nm
+    #
+    # Define the Near-Infrared (NIR) frequency range in Hz
+    freq_nir = np.linspace(400e12,290e12, num_points*2)
+    # Convert frequency to wavelength in nanometers
+    wavelength_nir = c_nm / freq_nir  # λ = c / f (in nm)
     # epsilon = [complex(real, imag) for real, imag in zip(ε_real, ε_imag)]  
-    plot_spectrum(9.61,frequency)
- 
+    plot_spectrum(9.61,freq_nir,wavelength_nir)
 
     plt.show()
 
