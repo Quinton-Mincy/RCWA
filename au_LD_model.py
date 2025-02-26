@@ -2,7 +2,7 @@
 # Author: Mikhail Polyanskiy
 # Last modified: 2017-04-02
 # Original data: Rakić et al. 1998, https://doi.org/10.1364/AO.37.005271
-# Modified by Quinton Mincy 12/24
+# Modified by Quinton Mincy 2/25
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,31 +29,19 @@ def LD(ω):
     ε += f5 * ωp**2 / ((ω5**2 - ω**2) - 1j * ω * Γ5)
     return ε
 
-def au_model():
-    ev_min = 1
-    ev_max = 4
-    npoints = 100
+def au_model(ev_min, ev_max, npoints, output_file='outLD.csv'):
     eV = np.logspace(np.log10(ev_min), np.log10(ev_max), npoints)
     μm = 4.13566733e-1 * 2.99792458 / eV
+    nm = μm*1000
     ε = LD(eV)
     n = (ε**0.5).real
     k = (ε**0.5).imag
 
     # Output data to a file
-    with open('out.csv', 'w') as file:
+    with open(output_file, 'w') as file:
         for i in range(npoints-1, -1, -1):
-            file.write('{:.4e},{:.4e},{:.4e},{:.4e},{:.4e}\n'.format(μm[i], n[i], k[i], ε[i].real, ε[i].imag))
-
-
-    # Plot results
-    # plt.plot(μm, n, label="n")
-    # plt.plot(μm, k, label="k")
-    # plt.xlabel('Wavelength (μm)')
-    # plt.ylabel('n, k')
-    # plt.xscale('log')
-    # plt.yscale('log')
-    # plt.legend(bbox_to_anchor=(0,1.02,1,0),loc=3,ncol=2,borderaxespad=0)
-    # plt.show()
+            file.write('{:.4e},{:.4e},{:.4e},{:.4e},{:.4e}\n'.format(nm[i], n[i], k[i], ε[i].real, ε[i].imag))
 
 if __name__ == "__main__":
     au_model()
+
