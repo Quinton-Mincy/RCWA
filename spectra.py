@@ -10,7 +10,7 @@ from numpy import linalg as la
 from matplotlib import pyplot as plt
 from matplotlib import cm
 import au_LD_model
-import au_BB_model
+# import au_BB_model
 import math
 from inkstone import Inkstone
 from tqdm import tqdm
@@ -26,8 +26,8 @@ pi   = np.pi
 #multipliers
 tera = 1e12
 #should be multiples of 3
-NUM_POINTS = 90
-NUM_G = 100
+NUM_POINTS = 15
+NUM_G = 50
 #microns
 thickness = 0.02
 
@@ -45,7 +45,7 @@ def init_inkstone(epsilon,geometry,thickness):
 
     s.AddMaterial(name='Au', epsilon=epsilon)
     
-    s.AddLayer(name='in', thickness=0, material_background='Au')
+    s.AddLayer(name='in', thickness=0, material_background='vacuum')
     s.AddLayer(name='slab', thickness=thickness, material_background='vacuum')
     s.AddLayerCopy(name='out', original_layer='in', thickness=0)
 
@@ -54,18 +54,10 @@ def init_inkstone(epsilon,geometry,thickness):
 
     return s
 
-def plot_spectrum(wavelength, transmission,thickness):
-    #set figure size
-    plt.figure(figsize=(10, 6))
-    # Plot transmission vs wavelength
-    plt.plot(wavelength, transmission * 100)
-
-    #Transmision vs wavelength
-    plt.xlabel('Wavelength (nm)')
-    plt.ylabel('Transmission (%)')
-    plt.title(f'Transmission vs Wavelength at {thickness*1000} nm')
-    plt.grid(True)
-    plt.tight_layout()  # Adjust layout to prevent clipping
+def plot_spectrum(ax, wavelength, transmission, thickness):
+    # Plot transmission vs. wavelength on the provided axes.
+    # Using a label to differentiate different thicknesses.
+    ax.plot(wavelength, transmission * 100, label=f'{thickness*1000:.0f} nm')
 
 def RCWA(epsilon,frequency,wavelength):
     #normalize frequency for RCWA calculations
@@ -76,6 +68,9 @@ def RCWA(epsilon,frequency,wavelength):
 
     # thickness = [0.015,0.018,0.02,0.025]#microns
     thickness = [0.02]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
     for thick in tqdm(thickness):
         #initialize inksone object
         s = init_inkstone(epsilon[0],geometry,thick)
@@ -86,6 +81,7 @@ def RCWA(epsilon,frequency,wavelength):
 
         for i,nu in enumerate(frequency_norm):
             # Update material properties and frequency
+            # print(f'freq:{frequency[i]/tera}, wav: {wavelength[i]}, norm_freq: {frequency_norm[i]}, eps: {epsilon[i]}')
             s.SetMaterial(name='Au', epsi=epsilon[i])
             s.SetFrequency(nu)
             
@@ -97,7 +93,16 @@ def RCWA(epsilon,frequency,wavelength):
         reflection = -np.array([a[1] for a in flux_in]) / incident
         transmission = np.array([a[0] for a in flux_out]) / incident
 
-        plot_spectrum(wavelength,transmission,thick)
+        plot_spectrum(ax,wavelength,transmission,thick)
+    
+    # After the loop, label and display the figure
+    ax.set_xlabel('Wavelength (nm)')
+    ax.set_ylabel('Transmission (%)')
+    ax.set_title('Transmission vs Wavelength for Various Thicknesses')
+    ax.grid(True)
+    ax.legend(title='Thickness')
+    plt.tight_layout()
+    plt.show()
 
 
 def extract(data):
@@ -141,9 +146,11 @@ def eps(data,freq_range):
     ε_real   = points[3]
     ε_imag   = points[4]
     epsilon = [complex(real, imag) for real, imag in zip(ε_real, ε_imag)]  
+    epsilon = epsilon[::-1]
     #initialize frequency array
     freq_params = np.linspace(freq_range[0],freq_range[1], NUM_POINTS)
     wavelength = (c_nm / freq_params)  # λ = c / f (in nm)
+    wavelength = wavelength[::-1]
     #RCWA
     RCWA(epsilon,freq_params,wavelength)
 
@@ -152,8 +159,8 @@ def eps(data,freq_range):
 if __name__ =='__main__':
 
     #LD model will calculate dielectric constant at various frequencies
-    freq_range = np.array([250e12,750e12])
-    ev_min,ev_max = freq_to_ev(freq_range)
+    freq_range = np.array([750e12,250e12])
+    ev_max,ev_min = freq_to_ev(freq_range)
     #calculate epsilon
     file_name = 'outLD.csv'
     au_LD_model.au_model(ev_min,ev_max,NUM_POINTS,file_name)
