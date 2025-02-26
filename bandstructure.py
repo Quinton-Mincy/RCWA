@@ -27,7 +27,7 @@ pi   = np.pi
 tera = 1e12
 #should be multiples of 90
 NUM_POINTS = 30
-NUM_G = 50
+NUM_G = 100
 #program parameters
 latc = 0.3
 latc_nm = 300e-9
@@ -117,17 +117,9 @@ def init_inkstone(epsilon,geometry):
 
     s.AddPatternPolygon(layer="slab", material="Au", pattern_name="poly1",
         vertices=geometry)
-    
-    # s.AddMaterial(name='Au', epsilon=epsilon[0])
-    # s.AddLayer(name='in', thickness=0, material_background='Au')
-    # s.AddLayer(name='slab', thickness=thickness, material_background='vacuum')
-    # s.AddLayerCopy(name='out', original_layer='in', thickness=0)
-    # s.AddPattern(layer="slab", material="Au", shape="polygon", pattern_name="poly1",
-    #     vertices=geometry)
-
     return s
 
-def plot_spectrum(epsilon,frequency,wavelength):
+def RCWA(epsilon,frequency,wavelength):
     frequency_norm = normalize_frequency(frequency,(latc_nm))
 
     centers=[(0,0),(latc,0),(latc/2,latc*np.sqrt(3)/2 )]
@@ -156,7 +148,7 @@ def plot_spectrum(epsilon,frequency,wavelength):
     bz2 = [K2,M2]
     with tqdm(total=len(frequency_norm), desc="Analyzing Frequencies", dynamic_ncols=True) as pbar:
         for i, nu in enumerate(frequency_norm):
-            pbar.set_description(f"ν: {frequency[i]/tera:.2f} THz, λ: {wavelength[i]:.2f} nm")  # Update text
+            pbar.set_description(f"ν: {frequency[i]/tera:.2f} THz, λ: {wavelength[i]:.2f} nm, ε:{epsilon[i]} ")  # Update text
             pbar.update(1)  # Increment progress bar
             s.SetMaterial(name='Au', epsi=epsilon[i])
             s.SetFrequency(nu)
@@ -288,13 +280,13 @@ def eps(data,freq_range):
     ε_real   = points[3]
     ε_imag   = points[4]
     epsilon = np.array([complex(real, imag) for real, imag in zip(ε_real, ε_imag)])
-    epsilon = epsilon[::-1]
+    # epsilon = epsilon[::-1]
     #initialize frequency array
     freq_params = np.linspace(freq_range[0],freq_range[1], NUM_POINTS)
     wavelength = c_nm / freq_params  # λ = c / f (in nm)
     wavelength = wavelength
     #RCWA
-    plot_spectrum(epsilon,freq_params,wavelength)
+    RCWA(epsilon,freq_params,wavelength)
     plt.show()
 
 if __name__ =='__main__':
