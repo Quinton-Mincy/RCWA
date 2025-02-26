@@ -66,8 +66,8 @@ def RCWA(epsilon,frequency,wavelength):
     centers=[(0,0),(latc,0),(latc/2,latc*np.sqrt(3)/2 )]
     geometry = init_geometry(latc/2,centers)
 
-    # thickness = [0.015,0.018,0.02,0.025]#microns
-    thickness = [0.02]
+    thickness = [0.015,0.018,0.02,0.025]#microns
+    # thickness = [0.02]
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -146,11 +146,11 @@ def eps(data,freq_range):
     ε_real   = points[3]
     ε_imag   = points[4]
     epsilon = [complex(real, imag) for real, imag in zip(ε_real, ε_imag)]  
-    epsilon = epsilon[::-1]
+    epsilon = epsilon
     #initialize frequency array
     freq_params = np.linspace(freq_range[0],freq_range[1], NUM_POINTS)
     wavelength = (c_nm / freq_params)  # λ = c / f (in nm)
-    wavelength = wavelength[::-1]
+    wavelength = wavelength
     #RCWA
     RCWA(epsilon,freq_params,wavelength)
 
