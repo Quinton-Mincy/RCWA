@@ -3,15 +3,14 @@
 #Code Built Arround Alex Song's Examples for his Inkstone library: https://github.com/alexysong/inkstone
 
 
-
 import numpy as np
 from numpy import linalg as la
 
 from matplotlib import pyplot as plt
 from matplotlib import cm
 import au_LD_model
-import au_BB_model
-import inp
+# import au_BB_model
+# import inp
 import math
 from inkstone import Inkstone
 from tqdm import tqdm
@@ -27,8 +26,8 @@ pi   = np.pi
 #multipliers
 tera = 1e12
 #should be multiples of 90
-NUM_POINTS = 90
-NUM_G = 100
+NUM_POINTS = 30
+NUM_G = 50
 #program parameters
 latc = 0.3
 latc_nm = 300e-9
@@ -109,20 +108,22 @@ def init_inkstone(epsilon,geometry):
     s = Inkstone()
     s.lattice = ((a1,a2))
     s.num_g = NUM_G
+    
+    s.AddMaterial(name='Au', epsilon=epsilon)
+    
+    s.AddLayer(name='in', thickness=0, material_background='vacuum')
+    s.AddLayer(name='slab', thickness=thickness, material_background='vacuum')
+    s.AddLayerCopy(name='out', original_layer='in', thickness=0)
 
+    s.AddPatternPolygon(layer="slab", material="Au", pattern_name="poly1",
+        vertices=geometry)
+    
     # s.AddMaterial(name='Au', epsilon=epsilon[0])
     # s.AddLayer(name='in', thickness=0, material_background='Au')
-    # s.AddLayer(name='slab', thickness=1, material_background='vacuum')
+    # s.AddLayer(name='slab', thickness=thickness, material_background='vacuum')
     # s.AddLayerCopy(name='out', original_layer='in', thickness=0)
     # s.AddPattern(layer="slab", material="Au", shape="polygon", pattern_name="poly1",
     #     vertices=geometry)
-        # s.AddMaterial(name='Au', epsilon=epsilon[0])
-    s.AddMaterial(name='Au', epsilon=epsilon[0])
-    s.AddLayer(name='in', thickness=0, material_background='Au')
-    s.AddLayer(name='slab', thickness=thickness, material_background='vacuum')
-    s.AddLayerCopy(name='out', original_layer='in', thickness=0)
-    s.AddPattern(layer="slab", material="Au", shape="polygon", pattern_name="poly1",
-        vertices=geometry)
 
     return s
 
@@ -131,12 +132,11 @@ def plot_spectrum(epsilon,frequency,wavelength):
 
     centers=[(0,0),(latc,0),(latc/2,latc*np.sqrt(3)/2 )]
     geometry = init_geometry(latc/2,centers)
-    s = init_inkstone(epsilon,geometry)
+    s = init_inkstone(epsilon[0],geometry)
 
     #sweep through incident angle
     # theta_values = np.linspace(0,90,NUM_POINTS)
     # theta_values_rad = [math.radians(the) for the in theta_values]
-
 
     theta_values = np.linspace(90,0,NUM_POINTS)
     theta_values = np.concatenate((theta_values, theta_values[::-1]))
@@ -287,31 +287,30 @@ def eps(data,freq_range):
     #dielectric constant
     ε_real   = points[3]
     ε_imag   = points[4]
-    epsilon = [complex(real, imag) for real, imag in zip(ε_real, ε_imag)]  
+    epsilon = np.array([complex(real, imag) for real, imag in zip(ε_real, ε_imag)])
+    epsilon = epsilon[::-1]
     #initialize frequency array
     freq_params = np.linspace(freq_range[0],freq_range[1], NUM_POINTS)
     wavelength = c_nm / freq_params  # λ = c / f (in nm)
+    wavelength = wavelength
     #RCWA
     plot_spectrum(epsilon,freq_params,wavelength)
-
     plt.show()
 
 if __name__ =='__main__':
     #calculate dielectric constant at various frequencies
-    freq_range = np.array([250e12,750e12])
-    ev_min,ev_max = freq_to_ev(freq_range)
+    freq_range = np.array([750e12,250e12])
+    ev_max,ev_min = freq_to_ev(freq_range)
     #***Indium Phosphide***
     # file_name = 'inp.csv'
     # inp.inp(ev_min,ev_max,NUM_POINTS,file_name)
     #***Gold- Lorentz-Drude Model***
-    # file_name = 'outLD.csv'
-    # au_LD_model.au_model(ev_min,ev_max,NUM_POINTS,file_name)
+    file_name = 'outLD.csv'
+    au_LD_model.au_model(ev_min,ev_max,NUM_POINTS,file_name)
     #Gold - Brendel-Bormann model
-    file_name = 'outBB.csv'
-    au_BB_model.BB_model(ev_min,ev_max,NUM_POINTS,file_name)
-
+    # file_name = 'outBB.csv'
+    # au_BB_model.BB_model(ev_min,ev_max,NUM_POINTS,file_name)
     data = np.genfromtxt(file_name, delimiter=',')
     #main exectution
     # print(recipro(a1,a2))
-
     eps(data,freq_range)
